@@ -1,0 +1,4 @@
+ALTER TABLE users
+    MODIFY COLUMN cognito_sub VARBINARY(255) NULL,
+    ADD COLUMN email VARCHAR(320) NULL,
+    ADD COLUMN cognito_username VARCHAR(128) NULL;

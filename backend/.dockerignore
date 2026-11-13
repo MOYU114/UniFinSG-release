@@ -1,0 +1,13 @@
+config.json
+.env
+.env.*
+!.env.example
+data
+logs
+.cache
+.gocache
+.gomodcache
+.git
+*.exe
+*.test
+coverage*

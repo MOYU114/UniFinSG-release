@@ -1,0 +1,49 @@
+name: unifinsg-local
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWD:?Run python deploy/init-local.py}
+      MYSQL_DATABASE: unichatgo
+      MYSQL_USER: unichatgo
+      MYSQL_PASSWORD: ${MYSQL_UNICHATGO_PASSWD:?Run python deploy/init-local.py}
+    ports: ["127.0.0.1:3306:3306"]
+    volumes: ["ops-mysql:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD-SHELL", 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysqladmin ping -h 127.0.0.1 --silent']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:7.2-bookworm
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWD:?Run python deploy/init-local.py}
+    command: ["sh", "-c", 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
+    ports: ["127.0.0.1:6379:6379"]
+    volumes: ["ops-redis:/data"]
+    healthcheck:
+      test: ["CMD-SHELL", 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      UNICHATGO_DB: mysql
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: unichatgo
+      MYSQL_DATABASE: unichatgo
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      AUTH_MODE: local
+      GIN_MODE: debug
+    ports: ["127.0.0.1:8090:8090"]
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+volumes:
+  ops-mysql:
+  ops-redis:

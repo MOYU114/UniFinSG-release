@@ -1,0 +1,16 @@
+FROM golang:1.25.13-bookworm AS builder
+LABEL authors="moyu114"
+WORKDIR /app
+COPY go.* ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=1 go test -c -tags=live -o /verify-llm.test ./internal/llm && CGO_ENABLED=1 go test -c -tags=live -o /verify-agent.test ./internal/agentv2
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=builder /verify-llm.test /verify-agent.test ./
+COPY internal/agentv2/testdata/gemini-receipt.png ./testdata/gemini-receipt.png
+RUN useradd --system --uid 10001 --home-dir /app appuser
+USER 10001:10001
+CMD ["/bin/sh", "-c", "./verify-llm.test -test.run TestGeminiLive -test.v -test.timeout 3m && ./verify-agent.test -test.run TestGeminiReceiptLive -test.v -test.timeout 3m"]

@@ -1,0 +1,16 @@
+*.db
+.env
+.cache
+.gocache
+.gomodcache
+.idea
+.gopath
+config.json
+/backend/data/
+.DS_Store
+/backend/logs/
+/deploy/output/
+/loadtest/results/
+/backend/*.exe
+/backend/*.test
+__pycache__/

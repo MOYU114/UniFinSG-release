@@ -1,0 +1,71 @@
+{
+  "family": "unifinsg-dev-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "runtimePlatform": {"cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX"},
+  "executionRoleArn": "REPLACE_WITH_DEV_EXECUTION_ROLE_ARN",
+  "taskRoleArn": "REPLACE_WITH_DEV_TASK_ROLE_ARN",
+  "containerDefinitions": [{
+    "name": "backend",
+    "image": "REPLACE_WITH_ECR_IMAGE_DIGEST",
+    "essential": true,
+    "portMappings": [{"containerPort": 8090, "protocol": "tcp"}],
+    "stopTimeout": 30,
+    "environment": [
+      {"name": "GIN_MODE", "value": "release"},
+      {"name": "AUTH_MODE", "value": "cognito"},
+      {"name": "UNICHATGO_DB", "value": "mysql"},
+      {"name": "MYSQL_HOST", "value": "REPLACE_WITH_RDS_ENDPOINT"},
+      {"name": "MYSQL_PORT", "value": "3306"},
+      {"name": "MYSQL_USER", "value": "unichatgo"},
+      {"name": "MYSQL_DATABASE", "value": "unichatgo"},
+      {"name": "MYSQL_PARAMS", "value": "charset=utf8mb4&parseTime=true&loc=UTC&tls=true"},
+      {"name": "REDIS_HOST", "value": "REPLACE_WITH_REDIS_ENDPOINT"},
+      {"name": "REDIS_PORT", "value": "6379"},
+      {"name": "REDIS_DB", "value": "0"},
+      {"name": "REDIS_TLS", "value": "true"},
+      {"name": "COGNITO_REGION", "value": "ap-southeast-1"},
+      {"name": "COGNITO_USER_POOL_ID", "value": "REPLACE_WITH_USER_POOL_ID"},
+      {"name": "COGNITO_CLIENT_ID", "value": "REPLACE_WITH_CLIENT_ID"},
+      {"name": "COGNITO_DOMAIN", "value": "REPLACE_WITH_COGNITO_HTTPS_ORIGIN"},
+      {"name": "COGNITO_REDIRECT_URI", "value": "REPLACE_WITH_HTTPS_CALLBACK"},
+      {"name": "FRONTEND_URL", "value": "REPLACE_WITH_CLOUDFRONT_HTTPS_ORIGIN"},
+      {"name": "TRUSTED_PROXY_CIDRS", "value": "REPLACE_WITH_VERIFIED_PROXY_CIDRS"},
+      {"name": "LLM_KIND", "value": "openai_compatible"},
+      {"name": "LLM_BASE_URL", "value": "REPLACE_WITH_LLM_BASE_URL"},
+      {"name": "LLM_MODEL", "value": "REPLACE_WITH_LLM_MODEL"},
+      {"name": "LLM_ALLOW_INSECURE_BYOK", "value": "false"},
+      {"name": "ASSISTANT_RPM", "value": "5"},
+      {"name": "CREDITS_DAILY_GRANT", "value": "100"},
+      {"name": "CREDITS_COST_CHAT", "value": "1"},
+      {"name": "CREDITS_COST_TOOL", "value": "2"},
+      {"name": "CREDITS_COST_VISION", "value": "5"},
+      {"name": "AGENT_MAX_STEPS", "value": "6"},
+      {"name": "AGENT_DRAFT_TTL_MINUTES", "value": "30"},
+      {"name": "STORAGE_DRIVER", "value": "s3"},
+      {"name": "S3_BUCKET", "value": "REPLACE_WITH_UPLOAD_BUCKET"},
+      {"name": "S3_REGION", "value": "ap-southeast-1"},
+      {"name": "S3_PREFIX", "value": "uploads/"},
+      {"name": "UPLOAD_TTL_HOURS", "value": "24"}
+    ],
+    "secrets": [
+      {"name": "MYSQL_UNICHATGO_PASSWD", "valueFrom": "REPLACE_WITH_DB_PASSWORD_SECRET_ARN"},
+      {"name": "REDIS_PASSWD", "valueFrom": "REPLACE_WITH_REDIS_PASSWORD_SECRET_ARN"},
+      {"name": "UNICHATGO_APIKEY_KEY", "valueFrom": "REPLACE_WITH_APP_KEY_SECRET_ARN"},
+      {"name": "COGNITO_CLIENT_SECRET", "valueFrom": "REPLACE_WITH_COGNITO_SECRET_ARN"},
+      {"name": "ADMIN_TOKEN", "valueFrom": "REPLACE_WITH_ADMIN_SECRET_ARN"},
+      {"name": "LLM_API_KEY", "valueFrom": "REPLACE_WITH_LLM_KEY_SECRET_ARN"}
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/unifinsg/dev/backend",
+        "awslogs-region": "ap-southeast-1",
+        "awslogs-stream-prefix": "ecs"
+      }
+    }
+  }],
+  "tags": [{"key": "project", "value": "unifinsg"}, {"key": "environment", "value": "dev"}]
+}

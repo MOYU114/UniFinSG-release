@@ -1,0 +1,67 @@
+name: Build cloud release artifacts
+on:
+  push:
+    branches: [ops_cloud_dev]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Test cloud configuration changes
+        working-directory: backend
+        run: go test ./internal/config ./internal/redis ./internal/llm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build real API frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: /api
+          VITE_AUTH_MODE: cognito
+          VITE_USE_MOCK: 'false'
+        run: npm ci && npm test && npm run build
+      - name: Show non-secret OIDC trust claims
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jwt = await core.getIDToken('sts.amazonaws.com');
+            const claims = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString());
+            core.info(JSON.stringify({iss: claims.iss, aud: claims.aud, sub: claims.sub, repository_id: claims.repository_id}));
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::815194656290:role/unifinsg-prod-image-build
+          aws-region: ap-southeast-1
+          retry-max-attempts: 2
+      - name: Check target AWS account
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = '815194656290'
+      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push immutable backend image
+        env:
+          IMAGE: 815194656290.dkr.ecr.ap-southeast-1.amazonaws.com/unifinsg-prod-backend:${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 -t "$IMAGE" backend
+          docker push "$IMAGE"
+          mkdir -p cloud-release
+          aws ecr batch-get-image --repository-name unifinsg-prod-backend --image-ids imageTag="${GITHUB_SHA}" --query 'images[0].imageId.imageDigest' --output text > cloud-release/image-digest.txt
+          verify_image="${IMAGE%:*}:verify-${GITHUB_SHA}"
+          docker build --platform linux/amd64 -f backend/Dockerfile.verify -t "$verify_image" backend
+          docker push "$verify_image"
+          aws ecr batch-get-image --repository-name unifinsg-prod-backend --image-ids imageTag="verify-${GITHUB_SHA}" --query 'images[0].imageId.imageDigest' --output text > cloud-release/verify-image-digest.txt
+          tar -czf cloud-release/frontend.tar.gz -C frontend/dist .
+          printf '%s\n' "$GITHUB_SHA" > cloud-release/commit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cloud-release-${{ github.sha }}
+          path: cloud-release/
+          retention-days: 7
